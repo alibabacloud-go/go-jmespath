@@ -149,7 +149,7 @@ func (lexer *Lexer) tokenize(expression string) ([]token, error) {
 loop:
 	for {
 		r := lexer.next()
-		if identifierStartBits&(1<<(uint64(r)-64)) > 0 {
+		if r >= 64 && r < 128 && identifierStartBits&(1<<(uint64(r)-64)) > 0 {
 			t := lexer.consumeUnquotedIdentifier()
 			tokens = append(tokens, t)
 		} else if val, ok := basicTokens[r]; ok {
@@ -386,7 +386,7 @@ func (lexer *Lexer) consumeUnquotedIdentifier() token {
 	start := lexer.currentPos - lexer.lastWidth
 	for {
 		r := lexer.next()
-		if r < 0 || r > 128 || identifierTrailingBits[uint64(r)/64]&(1<<(uint64(r)%64)) == 0 {
+		if r < 0 || r >= 128 || identifierTrailingBits[uint64(r)/64]&(1<<(uint64(r)%64)) == 0 {
 			lexer.back()
 			break
 		}

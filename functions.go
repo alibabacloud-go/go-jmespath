@@ -98,23 +98,18 @@ func (a *byExprFloat) Less(i, j int) bool {
 		// Return a dummy value.
 		return true
 	}
-	ith, ok := toNum(first)
-	if !ok {
-		a.hasError = true
-		return true
-	}
 	second, err := a.intr.Execute(a.node, a.items[j])
 	if err != nil {
 		a.hasError = true
 		// Return a dummy value.
 		return true
 	}
-	jth, ok := toNum(second)
+	cmp, ok := compareNumbers(first, second)
 	if !ok {
 		a.hasError = true
 		return true
 	}
-	return ith < jth
+	return cmp < 0
 }
 
 type functionCaller struct {
@@ -356,7 +351,7 @@ func (a *argSpec) typeCheck(arg interface{}) error {
 	for _, t := range a.types {
 		switch t {
 		case jpNumber:
-			if _, ok := toNum(arg); ok {
+			if _, ok := toExactNum(arg); ok {
 				return nil
 			}
 		case jpString:
@@ -372,7 +367,7 @@ func (a *argSpec) typeCheck(arg interface{}) error {
 				return nil
 			}
 		case jpArrayNumber:
-			if _, ok := toArrayNum(arg); ok {
+			if _, ok := toArrayExactNum(arg); ok {
 				return nil
 			}
 		case jpArrayString:
@@ -489,7 +484,7 @@ func jpfMap(arguments []interface{}) (interface{}, error) {
 	return mapped, nil
 }
 func jpfMax(arguments []interface{}) (interface{}, error) {
-	if items, ok := toArrayNum(arguments[0]); ok {
+	if items, ok := toArrayExactNum(arguments[0]); ok {
 		if len(items) == 0 {
 			return nil, nil
 		}
@@ -498,7 +493,8 @@ func jpfMax(arguments []interface{}) (interface{}, error) {
 		}
 		best := items[0]
 		for _, item := range items[1:] {
-			if item > best {
+			cmp, _ := compareNumbers(item, best)
+			if cmp > 0 {
 				best = item
 			}
 		}
@@ -544,20 +540,20 @@ func jpfMaxBy(arguments []interface{}) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	if t, ok := toNum(start); ok {
-		bestVal := t
+	if _, ok := toExactNum(start); ok {
+		bestVal := start
 		bestItem := arr[0]
 		for _, item := range arr[1:] {
 			result, err := intr.Execute(node, item)
 			if err != nil {
 				return nil, err
 			}
-			current, ok := toNum(result)
+			cmp, ok := compareNumbers(result, bestVal)
 			if !ok {
 				return nil, errors.New("invalid type, must be number")
 			}
-			if current > bestVal {
-				bestVal = current
+			if cmp > 0 {
+				bestVal = result
 				bestItem = item
 			}
 		}
@@ -596,7 +592,7 @@ func jpfSum(arguments []interface{}) (interface{}, error) {
 }
 
 func jpfMin(arguments []interface{}) (interface{}, error) {
-	if items, ok := toArrayNum(arguments[0]); ok {
+	if items, ok := toArrayExactNum(arguments[0]); ok {
 		if len(items) == 0 {
 			return nil, nil
 		}
@@ -605,7 +601,8 @@ func jpfMin(arguments []interface{}) (interface{}, error) {
 		}
 		best := items[0]
 		for _, item := range items[1:] {
-			if item < best {
+			cmp, _ := compareNumbers(item, best)
+			if cmp < 0 {
 				best = item
 			}
 		}
@@ -641,20 +638,20 @@ func jpfMinBy(arguments []interface{}) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	if t, ok := toNum(start); ok {
-		bestVal := t
+	if _, ok := toExactNum(start); ok {
+		bestVal := start
 		bestItem := arr[0]
 		for _, item := range arr[1:] {
 			result, err := intr.Execute(node, item)
 			if err != nil {
 				return nil, err
 			}
-			current, ok := toNum(result)
+			cmp, ok := compareNumbers(result, bestVal)
 			if !ok {
 				return nil, errors.New("invalid type, must be number")
 			}
-			if current < bestVal {
-				bestVal = current
+			if cmp < 0 {
+				bestVal = result
 				bestItem = item
 			}
 		}
@@ -683,7 +680,7 @@ func jpfMinBy(arguments []interface{}) (interface{}, error) {
 }
 func jpfType(arguments []interface{}) (interface{}, error) {
 	arg := arguments[0]
-	if _, ok := toNum(arg); ok {
+	if _, ok := toExactNum(arg); ok {
 		return "number", nil
 	}
 	if _, ok := arg.(string); ok {
@@ -738,13 +735,12 @@ func jpfToEntries(arguments []interface{}) (interface{}, error) {
 	return collected, nil
 }
 func jpfSort(arguments []interface{}) (interface{}, error) {
-	if items, ok := toArrayNum(arguments[0]); ok {
-		d := sort.Float64Slice(items)
-		sort.Stable(d)
-		final := make([]interface{}, len(d))
-		for i, val := range d {
-			final[i] = val
-		}
+	if items, ok := toArrayExactNum(arguments[0]); ok {
+		final := append([]interface{}(nil), items...)
+		sort.SliceStable(final, func(i, j int) bool {
+			cmp, _ := compareNumbers(final[i], final[j])
+			return cmp < 0
+		})
 		return final, nil
 	}
 	// Otherwise we're dealing with sort()'ing strings.
@@ -771,7 +767,7 @@ func jpfSortBy(arguments []interface{}) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := toNum(start); ok {
+	if _, ok := toExactNum(start); ok {
 		sortable := &byExprFloat{intr, node, arr, false}
 		sort.Stable(sortable)
 		if sortable.hasError {

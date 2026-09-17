@@ -74,6 +74,10 @@ func TestObjsEqual(t *testing.T) {
 	assert.True(objsEqual(json.Number("300"), 300.0))
 	assert.True(objsEqual(json.Number("1.0"), json.Number("1")))
 	assert.False(objsEqual(json.Number("300"), "300"))
+	assert.False(objsEqual(json.Number("9007199254740992"), json.Number("9007199254740993")))
+	cmp, ok := compareNumbers(json.Number("9007199254740993"), json.Number("9007199254740992"))
+	assert.True(ok)
+	assert.Equal(1, cmp)
 }
 
 func TestToNum(t *testing.T) {

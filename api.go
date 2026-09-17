@@ -34,7 +34,11 @@ func MustCompile(expression string) *JMESPath {
 
 // Search evaluates a JMESPath expression against input data and returns the result.
 func (jp *JMESPath) Search(data interface{}) (interface{}, error) {
-	return jp.intr.Execute(jp.ast, data)
+	result, err := jp.intr.Execute(jp.ast, data)
+	if err != nil {
+		return nil, err
+	}
+	return unwrapLiteralNumbers(result), nil
 }
 
 // Search evaluates a JMESPath expression against input data and returns the result.
@@ -45,5 +49,9 @@ func Search(expression string, data interface{}) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return intr.Execute(ast, data)
+	result, err := intr.Execute(ast, data)
+	if err != nil {
+		return nil, err
+	}
+	return unwrapLiteralNumbers(result), nil
 }

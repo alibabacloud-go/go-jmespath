@@ -121,10 +121,56 @@ func TestJSONNumberIsTreatedAsNumber(t *testing.T) {
 func TestJSONNumberIdentityPreservesPrecision(t *testing.T) {
 	assert := assert.New(t)
 	big := json.Number("9007199254740993")
-	data := map[string]interface{}{"id": big}
+	smaller := json.Number("9007199254740992")
+	data := map[string]interface{}{
+		"id":      big,
+		"smaller": smaller,
+		"items": []interface{}{
+			map[string]interface{}{"n": big},
+			map[string]interface{}{"n": smaller},
+		},
+	}
 	result, err := Search("id", data)
 	assert.Nil(err)
 	assert.Equal(big, result)
+
+	result, err = Search("id > smaller", data)
+	assert.Nil(err)
+	assert.Equal(true, result)
+
+	result, err = Search("id == `9007199254740993`", data)
+	assert.Nil(err)
+	assert.Equal(true, result)
+
+	result, err = Search("id != `9007199254740992`", data)
+	assert.Nil(err)
+	assert.Equal(true, result)
+
+	result, err = Search("`9007199254740993` != `9007199254740992`", data)
+	assert.Nil(err)
+	assert.Equal(true, result)
+
+	result, err = Search("max_by(items, &n).n", data)
+	assert.Nil(err)
+	assert.Equal(big, result)
+
+	result, err = Search("sort_by(items, &n)[0].n", data)
+	assert.Nil(err)
+	assert.Equal(smaller, result)
+}
+
+func TestJSONLiteralResultKeepsFloat64Compatibility(t *testing.T) {
+	assert := assert.New(t)
+	expression := MustCompile("`[1, 2, 3]`")
+	for i := 0; i < 2; i++ {
+		result, err := expression.Search(nil)
+		assert.Nil(err)
+		assert.Equal([]interface{}{1.0, 2.0, 3.0}, result)
+	}
+
+	result, err := Search("`9007199254740993`", nil)
+	assert.Nil(err)
+	assert.Equal(json.Number("9007199254740993"), result)
 }
 
 func TestJSONNumberFromUseNumberDecoder(t *testing.T) {

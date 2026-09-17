@@ -1,6 +1,7 @@
 package jmespath
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -318,11 +319,12 @@ func (p *Parser) nud(token token) (ASTNode, error) {
 	switch token.tokenType {
 	case tJSONLiteral:
 		var parsed interface{}
-		err := json.Unmarshal([]byte(token.value), &parsed)
-		if err != nil {
+		decoder := json.NewDecoder(bytes.NewBufferString(token.value))
+		decoder.UseNumber()
+		if err := decoder.Decode(&parsed); err != nil {
 			return ASTNode{}, err
 		}
-		return ASTNode{nodeType: ASTLiteral, value: parsed}, nil
+		return ASTNode{nodeType: ASTLiteral, value: wrapLiteralNumbers(parsed)}, nil
 	case tStringLiteral:
 		return ASTNode{nodeType: ASTLiteral, value: token.value}, nil
 	case tUnquotedIdentifier:

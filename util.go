@@ -128,8 +128,11 @@ func compareFloatNumbers(left interface{}, right interface{}) (int, bool) {
 		return -1, true
 	case leftNum > rightNum:
 		return 1, true
-	default:
+	case leftNum == rightNum:
 		return 0, true
+	default:
+		// NaN is unordered, so neither operand can establish equality.
+		return 0, false
 	}
 }
 

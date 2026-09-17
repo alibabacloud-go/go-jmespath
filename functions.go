@@ -430,6 +430,9 @@ func jpfAvg(arguments []interface{}) (interface{}, error) {
 	// We've already type checked the value so we can safely use
 	// type assertions.
 	args, _ := toArrayNum(arguments[0])
+	if len(args) == 0 {
+		return nil, nil
+	}
 	length := float64(len(args))
 	numerator := 0.0
 	for _, n := range args {

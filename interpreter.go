@@ -45,11 +45,11 @@ func (intr *treeInterpreter) Execute(node ASTNode, value interface{}) (interface
 		case tNE:
 			return !objsEqual(left, right), nil
 		}
-		leftNum, ok := left.(float64)
+		leftNum, ok := toNum(left)
 		if !ok {
 			return nil, nil
 		}
-		rightNum, ok := right.(float64)
+		rightNum, ok := toNum(right)
 		if !ok {
 			return nil, nil
 		}

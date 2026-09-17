@@ -1,6 +1,7 @@
 package jmespath
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 
@@ -63,4 +64,90 @@ func TestToEntries(t *testing.T) {
 		assert.True(hasKey)
 		assert.True(hasValue)
 	}
+}
+
+func TestJSONNumberIsTreatedAsNumber(t *testing.T) {
+	assert := assert.New(t)
+	data := map[string]interface{}{
+		"total": json.Number("300"),
+		"items": []interface{}{
+			map[string]interface{}{"n": json.Number("1")},
+			map[string]interface{}{"n": json.Number("3")},
+			map[string]interface{}{"n": json.Number("2")},
+		},
+	}
+
+	result, err := Search("total", data)
+	assert.Nil(err)
+	assert.Equal(json.Number("300"), result)
+
+	result, err = Search("total > `0`", data)
+	assert.Nil(err)
+	assert.Equal(true, result)
+
+	result, err = Search("total == `300`", data)
+	assert.Nil(err)
+	assert.Equal(true, result)
+
+	result, err = Search("type(total)", data)
+	assert.Nil(err)
+	assert.Equal("number", result)
+
+	result, err = Search("ceil(total)", data)
+	assert.Nil(err)
+	assert.Equal(300.0, result)
+
+	result, err = Search("abs(total)", data)
+	assert.Nil(err)
+	assert.Equal(300.0, result)
+
+	result, err = Search("to_number(total)", data)
+	assert.Nil(err)
+	assert.Equal(300.0, result)
+
+	result, err = Search("sum(items[*].n)", data)
+	assert.Nil(err)
+	assert.Equal(6.0, result)
+
+	result, err = Search("max_by(items, &n).n", data)
+	assert.Nil(err)
+	assert.Equal(json.Number("3"), result)
+
+	result, err = Search("sort_by(items, &n)[0].n", data)
+	assert.Nil(err)
+	assert.Equal(json.Number("1"), result)
+}
+
+func TestJSONNumberIdentityPreservesPrecision(t *testing.T) {
+	assert := assert.New(t)
+	big := json.Number("9007199254740993")
+	data := map[string]interface{}{"id": big}
+	result, err := Search("id", data)
+	assert.Nil(err)
+	assert.Equal(big, result)
+}
+
+func TestJSONNumberFromUseNumberDecoder(t *testing.T) {
+	assert := assert.New(t)
+	raw := []byte(`{"result":{"total":300}}`)
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	var data interface{}
+	assert.Nil(decoder.Decode(&data))
+
+	result, err := Search("result.total", data)
+	assert.Nil(err)
+	assert.Equal(json.Number("300"), result)
+
+	result, err = Search("result.total > `0`", data)
+	assert.Nil(err)
+	assert.Equal(true, result)
+
+	result, err = Search("type(result.total)", data)
+	assert.Nil(err)
+	assert.Equal("number", result)
+
+	result, err = Search("ceil(result.total)", data)
+	assert.Nil(err)
+	assert.Equal(300.0, result)
 }

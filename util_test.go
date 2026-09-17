@@ -1,6 +1,7 @@
 package jmespath
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/jmespath/go-jmespath/internal/testify/assert"
@@ -70,4 +71,21 @@ func TestObjsEqual(t *testing.T) {
 	assert.True(!objsEqual(nil, "foo"))
 	assert.True(objsEqual([]int{}, []int{}))
 	assert.True(!objsEqual([]int{}, nil))
+	assert.True(objsEqual(json.Number("300"), 300.0))
+	assert.True(objsEqual(json.Number("1.0"), json.Number("1")))
+	assert.False(objsEqual(json.Number("300"), "300"))
+}
+
+func TestToNum(t *testing.T) {
+	assert := assert.New(t)
+	n, ok := toNum(300.0)
+	assert.True(ok)
+	assert.Equal(300.0, n)
+	n, ok = toNum(json.Number("300"))
+	assert.True(ok)
+	assert.Equal(300.0, n)
+	_, ok = toNum("300")
+	assert.False(ok)
+	_, ok = toNum(json.Number("not-a-number"))
+	assert.False(ok)
 }

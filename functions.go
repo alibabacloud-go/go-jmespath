@@ -98,7 +98,7 @@ func (a *byExprFloat) Less(i, j int) bool {
 		// Return a dummy value.
 		return true
 	}
-	ith, ok := first.(float64)
+	ith, ok := toNum(first)
 	if !ok {
 		a.hasError = true
 		return true
@@ -109,7 +109,7 @@ func (a *byExprFloat) Less(i, j int) bool {
 		// Return a dummy value.
 		return true
 	}
-	jth, ok := second.(float64)
+	jth, ok := toNum(second)
 	if !ok {
 		a.hasError = true
 		return true
@@ -356,7 +356,7 @@ func (a *argSpec) typeCheck(arg interface{}) error {
 	for _, t := range a.types {
 		switch t {
 		case jpNumber:
-			if _, ok := arg.(float64); ok {
+			if _, ok := toNum(arg); ok {
 				return nil
 			}
 		case jpString:
@@ -408,7 +408,7 @@ func (f *functionCaller) CallFunction(name string, arguments []interface{}, intr
 }
 
 func jpfAbs(arguments []interface{}) (interface{}, error) {
-	num := arguments[0].(float64)
+	num, _ := toNum(arguments[0])
 	return math.Abs(num), nil
 }
 
@@ -434,16 +434,16 @@ func jpfStartsWith(arguments []interface{}) (interface{}, error) {
 func jpfAvg(arguments []interface{}) (interface{}, error) {
 	// We've already type checked the value so we can safely use
 	// type assertions.
-	args := arguments[0].([]interface{})
+	args, _ := toArrayNum(arguments[0])
 	length := float64(len(args))
 	numerator := 0.0
 	for _, n := range args {
-		numerator += n.(float64)
+		numerator += n
 	}
 	return numerator / length, nil
 }
 func jpfCeil(arguments []interface{}) (interface{}, error) {
-	val := arguments[0].(float64)
+	val, _ := toNum(arguments[0])
 	return math.Ceil(val), nil
 }
 func jpfContains(arguments []interface{}) (interface{}, error) {
@@ -458,7 +458,7 @@ func jpfContains(arguments []interface{}) (interface{}, error) {
 	// Otherwise this is a generic contains for []interface{}
 	general := search.([]interface{})
 	for _, item := range general {
-		if item == el {
+		if objsEqual(item, el) {
 			return true, nil
 		}
 	}
@@ -470,7 +470,7 @@ func jpfEndsWith(arguments []interface{}) (interface{}, error) {
 	return strings.HasSuffix(search, suffix), nil
 }
 func jpfFloor(arguments []interface{}) (interface{}, error) {
-	val := arguments[0].(float64)
+	val, _ := toNum(arguments[0])
 	return math.Floor(val), nil
 }
 func jpfMap(arguments []interface{}) (interface{}, error) {
@@ -544,8 +544,7 @@ func jpfMaxBy(arguments []interface{}) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch t := start.(type) {
-	case float64:
+	if t, ok := toNum(start); ok {
 		bestVal := t
 		bestItem := arr[0]
 		for _, item := range arr[1:] {
@@ -553,7 +552,7 @@ func jpfMaxBy(arguments []interface{}) (interface{}, error) {
 			if err != nil {
 				return nil, err
 			}
-			current, ok := result.(float64)
+			current, ok := toNum(result)
 			if !ok {
 				return nil, errors.New("invalid type, must be number")
 			}
@@ -563,6 +562,8 @@ func jpfMaxBy(arguments []interface{}) (interface{}, error) {
 			}
 		}
 		return bestItem, nil
+	}
+	switch t := start.(type) {
 	case string:
 		bestVal := t
 		bestItem := arr[0]
@@ -640,7 +641,7 @@ func jpfMinBy(arguments []interface{}) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	if t, ok := start.(float64); ok {
+	if t, ok := toNum(start); ok {
 		bestVal := t
 		bestItem := arr[0]
 		for _, item := range arr[1:] {
@@ -648,7 +649,7 @@ func jpfMinBy(arguments []interface{}) (interface{}, error) {
 			if err != nil {
 				return nil, err
 			}
-			current, ok := result.(float64)
+			current, ok := toNum(result)
 			if !ok {
 				return nil, errors.New("invalid type, must be number")
 			}
@@ -682,7 +683,7 @@ func jpfMinBy(arguments []interface{}) (interface{}, error) {
 }
 func jpfType(arguments []interface{}) (interface{}, error) {
 	arg := arguments[0]
-	if _, ok := arg.(float64); ok {
+	if _, ok := toNum(arg); ok {
 		return "number", nil
 	}
 	if _, ok := arg.(string); ok {
@@ -770,7 +771,7 @@ func jpfSortBy(arguments []interface{}) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := start.(float64); ok {
+	if _, ok := toNum(start); ok {
 		sortable := &byExprFloat{intr, node, arr, false}
 		sort.Stable(sortable)
 		if sortable.hasError {
@@ -832,7 +833,7 @@ func jpfToString(arguments []interface{}) (interface{}, error) {
 }
 func jpfToNumber(arguments []interface{}) (interface{}, error) {
 	arg := arguments[0]
-	if v, ok := arg.(float64); ok {
+	if v, ok := toNum(arg); ok {
 		return v, nil
 	}
 	if v, ok := arg.(string); ok {

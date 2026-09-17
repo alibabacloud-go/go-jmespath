@@ -1,6 +1,7 @@
 package jmespath
 
 import (
+	"encoding/json"
 	"errors"
 	"reflect"
 )
@@ -48,7 +49,30 @@ func isFalse(value interface{}) bool {
 // It will take two arbitrary objects and recursively determine
 // if they are equal.
 func objsEqual(left interface{}, right interface{}) bool {
+	if leftNum, ok := toNum(left); ok {
+		if rightNum, ok := toNum(right); ok {
+			return leftNum == rightNum
+		}
+		return false
+	}
 	return reflect.DeepEqual(left, right)
+}
+
+// toNum converts a JSON number into float64.
+// encoding/json.Decoder.UseNumber() stores numbers as json.Number instead of
+// float64; JMESPath still treats those values as numbers.
+func toNum(data interface{}) (float64, bool) {
+	switch v := data.(type) {
+	case float64:
+		return v, true
+	case json.Number:
+		n, err := v.Float64()
+		if err != nil {
+			return 0, false
+		}
+		return n, true
+	}
+	return 0, false
 }
 
 // SliceParam refers to a single part of a slice.
@@ -145,7 +169,7 @@ func toArrayNum(data interface{}) ([]float64, bool) {
 	if d, ok := data.([]interface{}); ok {
 		result := make([]float64, len(d))
 		for i, el := range d {
-			item, ok := el.(float64)
+			item, ok := toNum(el)
 			if !ok {
 				return nil, false
 			}
